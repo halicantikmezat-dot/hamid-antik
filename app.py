@@ -3,13 +3,12 @@ from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__, template_folder='.')
 
-# Bellek içi veritabanı (Mezat verileri)
 VERITABANI = {
     "urunler": [],
     "aktif_urun": None,
     "pey": 0,
     "kazanan": "Yok",
-    "durum": "Bekliyor",  # Bekliyor, Sayim, Bitti
+    "durum": "Bekliyor",
     "sure_bitis": 0,
     "musteri_pey_listesi": [],
 }
@@ -17,7 +16,7 @@ VERITABANI = {
 
 @app.route("/")
 def index():
-  return "Hâmid Antik Mezat Sunucusu Çalışıyor! Yönetim paneli için /admin adresine gidin."
+  return render_template("index.html")
 
 
 @app.route("/admin")
@@ -33,6 +32,32 @@ def durum_getir():
       VERITABANI["durum"] = "Bitti"
 
   return jsonify(VERITABANI)
+
+
+@app.route("/musteri-teklif", methods=["POST"])
+def musteri_teklif():
+  veri = request.json
+  musteri = veri.get("musteri")
+  fiyat = float(veri.get("fiyat", 0))
+
+  if VERITABANI["aktif_urun"]:
+    if fiyat > VERITABANI["pey"]:
+      VERITABANI["pey"] = fiyat
+      VERITABANI["kazanan"] = musteri
+      # Listeye ekle
+      VERITABANI["musteri_pey_listesi"].insert(
+          0,
+          {
+              "musteri": musteri,
+              "fiyat": fiyat,
+              "lot": VERITABANI["aktif_urun"]["lot"],
+              "urun_ad": VERITABANI["aktif_urun"]["ad"],
+          },
+      )
+      return jsonify({"mesaj": "Teklifiniz başarıyla alındı ve sahneye işlendi!"})
+    else:
+      return jsonify({"mesaj": "Teklifiniz mevcut fiyattan düşük olamaz!"})
+  return jsonify({"mesaj": "Şu an sahnede aktif bir ürün bulunmuyor!"})
 
 
 @app.route("/admin-islem", methods=["POST"])
